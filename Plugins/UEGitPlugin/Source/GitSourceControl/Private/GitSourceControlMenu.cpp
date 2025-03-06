@@ -38,11 +38,8 @@
 #include "ToolMenuMisc.h"
 #endif
 
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "LevelEditorSubsystem.h"
 #include "UObject/Linker.h"
-
-#include "Engine/Level.h"
-#include "UObject/Object.h"
 
 static const FName GitSourceControlMenuTabName(TEXT("GitSourceControlMenu"));
 static const FName LevelEditorName(TEXT("LevelEditor"));
@@ -511,28 +508,24 @@ void FGitSourceControlMenu::OnSourceControlOperationComplete(const FSourceContro
 	{
 		// Unstash any modifications if a stash was made at the beginning of the Sync operation
 		ReApplyStashedModifications();
-
-
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		TArray<FAssetData> AssetData;
-
-		AssetRegistryModule.Get().GetAssetsByPath("/Game/ThirdPerson/Maps", AssetData);
-		for (FAssetData Data : AssetData)
-		{
-			UE_LOG(LogSourceControl, Display, TEXT("%s"), *Data.GetObjectPathString());
-
-			if (Data.AssetName == "ThirdPersonMap")
-			{
-				UE_LOG(LogSourceControl, Display, TEXT("Found map"));
-				UPackage* MapPackage = Data.GetPackage();
-
-				PackagesToReload.AddUnique(MapPackage);
-			}
-			
-		}
 		
 		// Reload packages that where unlinked at the beginning of the Sync/Revert operation
 		GitSourceControlUtils::ReloadPackages(PackagesToReload);
+
+		if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
+		{
+			if (const ULevel* CurLevel = LevelEditorSubsystem->GetCurrentLevel())
+			{
+				TArray<UPackage*> ExtraPackagesToReload;
+				ExtraPackagesToReload.Add(CurLevel->GetPackage());
+
+				UPackageTools::ReloadPackages(ExtraPackagesToReload);
+			}
+			else
+			{
+				UE_LOG(LogSourceControl, Error, TEXT("GetCurrentLevel. Can't Get the current level because there is no world."));
+			}
+		}
 	}
 
 	// Report result with a notification
