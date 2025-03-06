@@ -1,0 +1,3 @@
+[submodule "Plugins/DT-UEGitPlugin"]
+	path = Plugins/DT-UEGitPlugin
+	url = https://github.com/DoomT-Ethan/DT-UEGitPlugin.git
